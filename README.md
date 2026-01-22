@@ -1,21 +1,61 @@
 # SVG ASCII Generator
 
-Conversor de imagen a ASCII usando SVG personalizados como caracteres.
+Conversor avanzado de imagen a ASCII usando caracteres SVG personalizables. Transforma imágenes en composiciones artísticas usando formas vectoriales.
+
+## 🌐 Demo en Vivo
+
+**URL**: [https://ismaelrivela.github.io/svg_ascii_generator/](https://ismaelrivela.github.io/svg_ascii_generator/)
+
+### ⚙️ Activar GitHub Pages (Solo Primera Vez)
+
+Para activar el sitio público, sigue estos pasos **una sola vez**:
+
+1. Ve a tu repositorio: https://github.com/IsmaelRivela/svg_ascii_generator
+2. Click en **Settings** (Configuración)
+3. En el menú lateral izquierdo, click en **Pages**
+4. En **Source** (Origen):
+   - Selecciona **GitHub Actions**
+5. ¡Listo! El sitio se desplegará automáticamente
+
+El deploy tarda 1-2 minutos. Una vez completado, tu app estará disponible en:
+**https://ismaelrivela.github.io/svg_ascii_generator/**
 
 ## ✨ Características
+
+### 🎨 Multi-Colección de Caracteres
+- Selecciona caracteres de **múltiples colecciones simultáneamente**
+- Vista de **acordeón** que muestra todas las colecciones
+- Contadores de caracteres activos por colección
+- Drag & drop para reordenar caracteres
+
+### 🌓 Filtros por Luminancia
+- 🌑 **Oscuros** (0-0.3): Para fondos claros
+- ◐ **Medios** (0.3-0.7): Tonos medios
+- ☀️ **Claros** (0.7-1.0): Para fondos oscuros
+- Ordenar automáticamente por luminancia
+
+### 📐 Control de Canvas
+- Ajuste de tamaño con **aspect ratio lock**
+- Indicador visual de escala (ej: 1920×1080 → 800×450 42%)
+- Rango: 200px a 3840px
 
 - 🖼️ **Drag & drop** de imágenes (JPG, PNG, WEBP)
 - 🎨 **Colecciones SVG personalizadas** - Crea tus propios sets de caracteres
 - 👁️ **Visor de caracteres** - Activa/desactiva caracteres individualmente con toggle
+### ⚡ Renderizado y Controles
 - ⚡ **Preview en vivo** - Renderizado reactivo en tiempo real
 - 🎛️ **Controles tipo Photoshop** - Brightness, Contrast, Exposure, Gamma, Saturation, Threshold
 - 🎯 **3 modos de renderizado** - Blanco y Negro, Color, Duotono
+- 🔳 **Background transparente** - Para exportar con transparencia
+- 🔧 **Web Workers** - Procesamiento sin bloquear UI (con debounce anti-lag)
+- 🔄 **Reset All** - Botón para resetear toda la configuración
+
+### 💾 Gestión y Export
 - 💾 **Presets personalizables** - Guarda y carga configuraciones
 - 📤 **Export múltiple** - SVG, PNG, JPEG
 - 📥 **Importar/Exportar** - Comparte colecciones con archivos SVG
 - 💽 **Persistencia local** - IndexedDB (local-first)
 - 📱 **Responsive** - Desktop y mobile
-- 🔧 **Web Workers** - Procesamiento sin bloquear UI
 
 ## 🚀 Inicio rápido
 
@@ -26,7 +66,15 @@ npm run dev
 
 Abre [http://localhost:5173](http://localhost:5173)
 
-## � Colecciones incluidas
+## 🛠️ Scripts Disponibles
+
+```bash
+npm run dev      # Servidor de desarrollo
+npm run build    # Build para producción
+npm run preview  # Preview del build
+```
+
+## 🎨 Colecciones incluidas
 
 En la carpeta `/collections/` encontrarás colecciones de ejemplo:
 
