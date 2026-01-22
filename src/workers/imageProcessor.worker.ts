@@ -22,7 +22,7 @@ function processImage(
   chars: SVGChar[]
 ): ProcessedCell[] {
   const { width, height, data } = imageData;
-  const { cellSize, brightness, contrast, exposure, gamma, saturation, threshold } = config;
+  const { cellSize, brightness, contrast, exposure, gamma, saturation, threshold, skipWhiteAreas, whiteThreshold, invertColors } = config;
 
   const cols = Math.ceil(width / cellSize);
   const rows = Math.ceil(height / cellSize);
@@ -35,7 +35,7 @@ function processImage(
       const x = col * cellSize;
       const y = row * cellSize;
       
-      const { r, g, b, luminance } = calculateCellAverage(
+      let { r, g, b, luminance } = calculateCellAverage(
         data,
         width,
         height,
@@ -43,6 +43,19 @@ function processImage(
         y,
         cellSize
       );
+
+      // Invert colors if enabled (before skip white areas check)
+      if (invertColors) {
+        r = 255 - r;
+        g = 255 - g;
+        b = 255 - b;
+        luminance = 1 - luminance;
+      }
+
+      // Skip white areas if enabled
+      if (skipWhiteAreas && luminance >= (whiteThreshold || 0.85)) {
+        continue;
+      }
 
       const adjusted = adjustValues(
         { r, g, b, luminance },
@@ -167,14 +180,43 @@ function selectChar(luminance: number, sortedChars: SVGChar[]): SVGChar {
     };
   }
 
+  // Binary search for better performance with sorted array
+  let left = 0;
+  let right = sortedChars.length - 1;
   let closest = sortedChars[0];
   let minDiff = Math.abs(luminance - closest.luminance);
 
-  for (const char of sortedChars) {
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
+    const char = sortedChars[mid];
     const diff = Math.abs(luminance - char.luminance);
+
     if (diff < minDiff) {
       minDiff = diff;
       closest = char;
+    }
+
+    if (char.luminance < luminance) {
+      left = mid + 1;
+    } else if (char.luminance > luminance) {
+      right = mid - 1;
+    } else {
+      return char; // Exact match
+    }
+  }
+
+  // Check neighbors for closest match
+  const index = sortedChars.indexOf(closest);
+  if (index > 0) {
+    const prevDiff = Math.abs(luminance - sortedChars[index - 1].luminance);
+    if (prevDiff < minDiff) {
+      closest = sortedChars[index - 1];
+    }
+  }
+  if (index < sortedChars.length - 1) {
+    const nextDiff = Math.abs(luminance - sortedChars[index + 1].luminance);
+    if (nextDiff < minDiff) {
+      closest = sortedChars[index + 1];
     }
   }
 

@@ -21,8 +21,10 @@ export function ExportPanel() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, width, height);
+    if (!config.transparentBackground) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, width, height);
+    }
 
     const renderQueue: Promise<void>[] = [];
 
@@ -41,7 +43,8 @@ export function ExportPanel() {
       const promise = new Promise<void>((resolve) => {
         const img = new Image();
         const svg = cell.char.svg.replace(/currentColor/g, color);
-        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">${svg}</svg>`;
+        const viewBox = cell.char.viewBox || '0 0 12 12';
+        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="${viewBox}">${svg}</svg>`;
         img.onload = () => {
           ctx.drawImage(img, x, y, cellSize, cellSize);
           resolve();
@@ -79,7 +82,9 @@ export function ExportPanel() {
     const height = (maxY + 1) * actualCellSize;
 
     let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
-    svgContent += `<rect width="${width}" height="${height}" fill="#000"/>`;
+    if (!config.transparentBackground) {
+      svgContent += `<rect width="${width}" height="${height}" fill="#000"/>`;
+    }
 
     processedCells.forEach((cell) => {
       const x = cell.x * actualCellSize;
@@ -94,7 +99,10 @@ export function ExportPanel() {
       }
 
       const charSvg = cell.char.svg.replace(/currentColor/g, color);
-      svgContent += `<g transform="translate(${x}, ${y}) scale(${cellSize / 12})">`;
+      const viewBox = cell.char.viewBox || '0 0 12 12';
+      const [,, vbWidth, vbHeight] = viewBox.split(' ').map(Number);
+      const scale = cellSize / Math.max(vbWidth, vbHeight);
+      svgContent += `<g transform="translate(${x}, ${y}) scale(${scale})">`;
       svgContent += charSvg;
       svgContent += `</g>`;
     });
@@ -128,8 +136,10 @@ export function ExportPanel() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, width, height);
+    if (!config.transparentBackground) {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, width, height);
+    }
 
     const renderQueue: Promise<void>[] = [];
 
@@ -148,7 +158,8 @@ export function ExportPanel() {
       const promise = new Promise<void>((resolve) => {
         const img = new Image();
         const svg = cell.char.svg.replace(/currentColor/g, color);
-        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">${svg}</svg>`;
+        const viewBox = cell.char.viewBox || '0 0 12 12';
+        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="${viewBox}">${svg}</svg>`;
         img.onload = () => {
           ctx.drawImage(img, x, y, cellSize, cellSize);
           resolve();

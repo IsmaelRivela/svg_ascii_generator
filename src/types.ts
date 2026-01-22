@@ -25,6 +25,11 @@ export interface RenderConfig {
   mode: 'bw' | 'color' | 'duotone';
   duotoneColor1?: string;
   duotoneColor2?: string;
+  transparentBackground?: boolean;
+  skipWhiteAreas?: boolean;
+  whiteThreshold?: number;
+  previewBackground?: 'black' | 'white';
+  invertColors?: boolean;
 }
 
 export interface Preset {

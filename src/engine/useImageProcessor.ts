@@ -49,9 +49,20 @@ export function useImageProcessor() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = sourceImage.width;
-    canvas.height = sourceImage.height;
-    ctx.drawImage(sourceImage, 0, 0);
+    // Limit image size for better performance
+    const MAX_DIMENSION = 1920;
+    let width = sourceImage.width;
+    let height = sourceImage.height;
+
+    if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+      const scale = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+      width = Math.floor(width * scale);
+      height = Math.floor(height * scale);
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(sourceImage, 0, 0, width, height);
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 

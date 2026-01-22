@@ -49,6 +49,11 @@ const defaultConfig: RenderConfig = {
   cellSize: 12,
   spacing: 0,
   mode: 'bw',
+  transparentBackground: false,
+  skipWhiteAreas: false,
+  whiteThreshold: 0.85,
+  previewBackground: 'black',
+  invertColors: false,
 };
 
 const defaultPresets: Preset[] = [

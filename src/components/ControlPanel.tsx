@@ -12,7 +12,7 @@ export function ControlPanel() {
     { key: 'saturation', label: 'Saturation', min: 0, max: 2, step: 0.1 },
     { key: 'threshold', label: 'Threshold', min: 0, max: 1, step: 0.01 },
     { key: 'cellSize', label: 'Cell Size', min: 4, max: 48, step: 1 },
-    { key: 'spacing', label: 'Spacing', min: 0, max: 10, step: 1 },
+    { key: 'spacing', label: 'Spacing / Overlap', min: -24, max: 10, step: 1 },
   ];
 
   return (
@@ -44,6 +44,91 @@ export function ControlPanel() {
               }}
             >
               {mode.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={config.transparentBackground || false}
+            onChange={(e) => updateConfig({ transparentBackground: e.target.checked })}
+            style={{ marginRight: '8px' }}
+          />
+          Transparent Background
+        </label>
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={config.skipWhiteAreas || false}
+            onChange={(e) => updateConfig({ skipWhiteAreas: e.target.checked })}
+            style={{ marginRight: '8px' }}
+          />
+          Skip White Areas
+        </label>
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{ fontSize: '13px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={config.invertColors || false}
+            onChange={(e) => updateConfig({ invertColors: e.target.checked })}
+            style={{ marginRight: '8px' }}
+          />
+          Invert Colors
+        </label>
+      </div>
+
+      {config.skipWhiteAreas && (
+        <div style={{ marginBottom: '16px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginBottom: '4px',
+              fontSize: '12px',
+            }}
+          >
+            <label>White Threshold</label>
+            <span style={{ color: 'var(--text-dim)' }}>
+              {config.whiteThreshold || 0.85}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={config.whiteThreshold || 0.85}
+            onChange={(e) =>
+              updateConfig({ whiteThreshold: parseFloat(e.target.value) })
+            }
+          />
+        </div>
+      )}
+
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{ fontSize: '13px', marginBottom: '8px', display: 'block' }}>
+          Preview Background
+        </label>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {(['black', 'white'] as const).map((bg) => (
+            <button
+              key={bg}
+              onClick={() => updateConfig({ previewBackground: bg })}
+              style={{
+                fontSize: '11px',
+                padding: '6px 12px',
+                background: (config.previewBackground || 'black') === bg ? 'var(--accent)' : 'var(--border)',
+              }}
+            >
+              {bg.charAt(0).toUpperCase() + bg.slice(1)}
             </button>
           ))}
         </div>
