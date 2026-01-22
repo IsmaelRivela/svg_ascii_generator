@@ -22,6 +22,7 @@ interface AppState {
   // Render config
   config: RenderConfig;
   updateConfig: (config: Partial<RenderConfig>) => void;
+  resetConfig: () => void;
 
   // Presets
   presets: Preset[];
@@ -155,6 +156,7 @@ export const useStore = create<AppState>((set, get) => ({
   config: defaultConfig,
   updateConfig: (newConfig) =>
     set((state) => ({ config: { ...state.config, ...newConfig } })),
+  resetConfig: () => set({ config: defaultConfig }),
 
   presets: defaultPresets,
   setPresets: (presets) => set({ presets }),

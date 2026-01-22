@@ -30,6 +30,8 @@ export interface RenderConfig {
   whiteThreshold?: number;
   previewBackground?: 'black' | 'white';
   invertColors?: boolean;
+  canvasWidth?: number;
+  canvasHeight?: number;
 }
 
 export interface Preset {

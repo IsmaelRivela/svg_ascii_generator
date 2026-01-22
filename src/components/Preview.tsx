@@ -23,11 +23,16 @@ export function Preview() {
   }, [processedCells, config]);
 
   useEffect(() => {
-    if (!canvasRef.current || processedCells.length === 0 || renderingRef.current) return;
+    if (!canvasRef.current || processedCells.length === 0) return;
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d', { alpha: config.transparentBackground || false, willReadFrequently: false });
+    const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: false });
     if (!ctx) return;
+
+    // Cancel any ongoing render
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
 
     renderingRef.current = true;
     const { cellSize, spacing } = config;
@@ -36,12 +41,13 @@ export function Preview() {
     canvas.width = dimensions.width;
     canvas.height = dimensions.height;
 
+    // Clear canvas completely first
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
     // Only fill background if not transparent
     if (!config.transparentBackground) {
       ctx.fillStyle = config.previewBackground === 'white' ? '#fff' : '#000';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-    } else {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
     // Pre-process all cells and group by cache key
@@ -132,8 +138,13 @@ export function Preview() {
 
     if (imagesToLoad.size === 0) {
       // All images are cached
-      cachedRender();
-      renderingRef.current = false;
+      try {
+        cachedRender();
+      } catch (error) {
+        console.error('Error rendering cached preview:', error);
+      } finally {
+        renderingRef.current = false;
+      }
     } else {
       // Load new images and render
       Promise.all(loadPromises).then(() => {
@@ -149,6 +160,7 @@ export function Preview() {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+      renderingRef.current = false;
     };
   }, [processedCells, config, dimensions]);
 

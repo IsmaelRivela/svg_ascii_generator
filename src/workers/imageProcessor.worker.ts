@@ -8,11 +8,23 @@ interface WorkerMessage {
 }
 
 self.onmessage = (e: MessageEvent<WorkerMessage>) => {
-  const { type, imageData, config, chars } = e.data;
+  try {
+    const { type, imageData, config, chars } = e.data;
 
-  if (type === 'process') {
-    const cells = processImage(imageData, config, chars);
-    self.postMessage({ type: 'result', cells });
+    if (type === 'process') {
+      if (!chars || chars.length === 0) {
+        console.error('No chars provided to worker');
+        self.postMessage({ type: 'result', cells: [] });
+        return;
+      }
+
+      const cells = processImage(imageData, config, chars);
+      self.postMessage({ type: 'result', cells });
+    }
+  } catch (error) {
+    console.error('Worker processing error:', error);
+    // Always send a response even on error
+    self.postMessage({ type: 'result', cells: [] });
   }
 };
 
