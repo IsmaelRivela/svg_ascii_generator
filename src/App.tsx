@@ -35,14 +35,36 @@ function App() {
         loadEnabledChars(),
       ]);
 
+      // Always ensure we have the latest default collections
+      const defaultCollections = [defaultCollection, glifosCollection, tulipanaCollectionData];
+      
       if (savedCollections.length === 0) {
-        setCollections([defaultCollection, glifosCollection, tulipanaCollectionData]);
+        // First time: load all default collections
+        setCollections(defaultCollections);
         setActiveCollection(tulipanaCollectionData.id);
-        saveCollections([defaultCollection, glifosCollection, tulipanaCollectionData]);
+        saveCollections(defaultCollections);
       } else {
-        setCollections(savedCollections);
-        if (savedCollections.length > 0) {
-          setActiveCollection(savedCollections[0].id);
+        // Check if we need to add new collections
+        const hasDefaultCollection = savedCollections.some(c => c.id === 'default');
+        const hasGlifos = savedCollections.some(c => c.id === 'glifos-rushmore');
+        const hasTulipana = savedCollections.some(c => c.id === 'tulipana');
+        
+        const collectionsToAdd = [];
+        if (!hasDefaultCollection) collectionsToAdd.push(defaultCollection);
+        if (!hasGlifos) collectionsToAdd.push(glifosCollection);
+        if (!hasTulipana) collectionsToAdd.push(tulipanaCollectionData);
+        
+        const allCollections = [...savedCollections, ...collectionsToAdd];
+        setCollections(allCollections);
+        
+        if (allCollections.length > 0) {
+          // If we just added Tulipana, make it active
+          setActiveCollection(hasTulipana ? savedCollections[0].id : tulipanaCollectionData.id);
+        }
+        
+        // Save updated collections if we added new ones
+        if (collectionsToAdd.length > 0) {
+          saveCollections(allCollections);
         }
         
         // Load enabled chars if saved
