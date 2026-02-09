@@ -1,5 +1,6 @@
 import { SVGCollection, SVGChar } from '../types';
 import { glifosRushmoreCollection } from './glifosRushmore';
+import { tulipanaCollection } from './tulipana';
 
 const defaultChars: SVGChar[] = [
   {
@@ -75,5 +76,12 @@ export const glifosCollection: SVGCollection = {
   id: 'glifos-rushmore',
   name: 'Glifos Rushmore',
   chars: glifosRushmoreCollection,
+  createdAt: Date.now(),
+};
+
+export const tulipanaCollectionData: SVGCollection = {
+  id: 'tulipana',
+  name: 'Tulipana',
+  chars: tulipanaCollection,
   createdAt: Date.now(),
 };

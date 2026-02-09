@@ -8,7 +8,7 @@ import { CharacterViewer } from './components/CharacterViewer';
 import { ExportPanel } from './components/ExportPanel';
 import { useImageProcessor } from './engine/useImageProcessor';
 import { loadCollections, loadPresets, loadConfig, saveCollections, savePresets, saveConfig, loadEnabledChars, saveEnabledChars } from './utils/db';
-import { defaultCollection, glifosCollection } from './utils/defaultSVGs';
+import { defaultCollection, glifosCollection, tulipanaCollectionData } from './utils/defaultSVGs';
 
 function App() {
   useImageProcessor();
@@ -36,9 +36,9 @@ function App() {
       ]);
 
       if (savedCollections.length === 0) {
-        setCollections([defaultCollection, glifosCollection]);
-        setActiveCollection(glifosCollection.id);
-        saveCollections([defaultCollection, glifosCollection]);
+        setCollections([defaultCollection, glifosCollection, tulipanaCollectionData]);
+        setActiveCollection(tulipanaCollectionData.id);
+        saveCollections([defaultCollection, glifosCollection, tulipanaCollectionData]);
       } else {
         setCollections(savedCollections);
         if (savedCollections.length > 0) {
