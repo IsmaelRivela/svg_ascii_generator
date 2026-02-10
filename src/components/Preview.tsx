@@ -1,168 +1,170 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStore } from '../stores/useStore';
 
-const svgCache = new Map<string, HTMLImageElement>();
-const BATCH_SIZE = 500; // Render in batches to avoid blocking UI
+// Pre-render each unique glyph ONCE as a bitmap at the current cellSize.
+// Then stamp them onto the main canvas with color tinting.
+// This avoids creating thousands of Image objects per frame.
+
+const glyphCache = new Map<string, CanvasRenderingContext2D>();
+let cachedCellSize = 0;
+
+function getGlyphBitmap(char: { id: string; svg: string; viewBox?: string }, cellSize: number): CanvasRenderingContext2D | null {
+  // Invalidate cache if cellSize changed
+  if (cellSize !== cachedCellSize) {
+    glyphCache.clear();
+    cachedCellSize = cellSize;
+  }
+
+  const cached = glyphCache.get(char.id);
+  if (cached) return cached;
+
+  // Render glyph to an offscreen canvas (white on transparent)
+  const canvas = document.createElement('canvas');
+  canvas.width = cellSize;
+  canvas.height = cellSize;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  // Use SVG with white fill so we can tint it later
+  const svg = char.svg.replace(/currentColor/g, '#fff');
+  const viewBox = char.viewBox || '0 0 12 12';
+  const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${cellSize}" height="${cellSize}" viewBox="${viewBox}">${svg}</svg>`;
+
+  const img = new Image();
+  img.src = 'data:image/svg+xml;base64,' + btoa(svgStr);
+
+  // Synchronous if already cached by browser, otherwise we queue
+  if (img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(img, 0, 0, cellSize, cellSize);
+    glyphCache.set(char.id, ctx);
+    return ctx;
+  }
+
+  // Async path: load and cache
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, cellSize, cellSize);
+    glyphCache.set(char.id, ctx);
+  };
+
+  return null; // Will be available next render
+}
 
 export function Preview() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { processedCells, config, isProcessing } = useStore();
-  const renderingRef = useRef(false);
-  const animationFrameRef = useRef<number>();
-
-  const dimensions = useMemo(() => {
-    if (processedCells.length === 0) return { width: 0, height: 0 };
-    const { cellSize, spacing } = config;
-    const actualCellSize = cellSize + spacing;
-    const maxX = Math.max(...processedCells.map((c) => c.x));
-    const maxY = Math.max(...processedCells.map((c) => c.y));
-    return {
-      width: (maxX + 1) * actualCellSize,
-      height: (maxY + 1) * actualCellSize,
-    };
-  }, [processedCells, config]);
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
     if (!canvasRef.current || processedCells.length === 0) return;
 
+    // Cancel previous render
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d', { alpha: true, willReadFrequently: false });
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    // Cancel any ongoing render
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-
-    renderingRef.current = true;
     const { cellSize, spacing } = config;
-    const actualCellSize = cellSize + spacing;
+    const step = cellSize + spacing;
 
-    canvas.width = dimensions.width;
-    canvas.height = dimensions.height;
+    // Compute canvas size
+    let maxX = 0, maxY = 0;
+    for (let i = 0; i < processedCells.length; i++) {
+      if (processedCells[i].x > maxX) maxX = processedCells[i].x;
+      if (processedCells[i].y > maxY) maxY = processedCells[i].y;
+    }
+    const w = (maxX + 1) * step;
+    const h = (maxY + 1) * step;
 
-    // Clear canvas completely first
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Only fill background if not transparent
+    canvas.width = w;
+    canvas.height = h;
+
+    // Background
+    ctx.clearRect(0, 0, w, h);
     if (!config.transparentBackground) {
       ctx.fillStyle = config.previewBackground === 'white' ? '#fff' : '#000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, w, h);
     }
 
-    // Pre-process all cells and group by cache key
-    const cellsByKey = new Map<string, Array<{ x: number; y: number }>>();
-    const imagesToLoad = new Map<string, HTMLImageElement>();
-
-    processedCells.forEach((cell) => {
-      const x = cell.x * actualCellSize;
-      const y = cell.y * actualCellSize;
-
-      let color: string;
-      if (config.mode === 'bw') {
-        const gray = Math.floor(cell.luminance * 255);
-        color = `rgb(${gray}, ${gray}, ${gray})`;
-      } else {
-        color = `rgb(${cell.r}, ${cell.g}, ${cell.b})`;
+    // Pre-warm glyph cache
+    const uniqueChars = new Map<string, typeof processedCells[0]['char']>();
+    for (const cell of processedCells) {
+      if (!uniqueChars.has(cell.char.id)) {
+        uniqueChars.set(cell.char.id, cell.char);
       }
+    }
+    let allCached = true;
+    for (const char of uniqueChars.values()) {
+      if (!getGlyphBitmap(char, cellSize)) allCached = false;
+    }
 
-      const cacheKey = `${cell.char.id}-${color}`;
-      
-      if (!cellsByKey.has(cacheKey)) {
-        cellsByKey.set(cacheKey, []);
-      }
-      cellsByKey.get(cacheKey)!.push({ x, y });
-
-      // Create image only once per unique key
-      if (!svgCache.has(cacheKey) && !imagesToLoad.has(cacheKey)) {
-        const svg = cell.char.svg.replace(/currentColor/g, color);
-        const viewBox = cell.char.viewBox || '0 0 12 12';
-        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="${viewBox}">${svg}</svg>`;
-        const img = new Image();
-        img.src = 'data:image/svg+xml;base64,' + btoa(svgContent);
-        imagesToLoad.set(cacheKey, img);
-      }
-    });
-
-    // Render function that works in batches
-    const renderBatch = (startIdx: number, keys: string[]) => {
-      const endIdx = Math.min(startIdx + BATCH_SIZE, processedCells.length);
-      let rendered = 0;
-
-      for (const [cacheKey, positions] of cellsByKey.entries()) {
-        const img = svgCache.get(cacheKey) || imagesToLoad.get(cacheKey);
-        if (!img || !img.complete) continue;
-
-        for (const { x, y } of positions) {
-          if (rendered >= startIdx && rendered < endIdx) {
-            ctx.drawImage(img, x, y, cellSize, cellSize);
-          }
-          rendered++;
-        }
-      }
-
-      if (endIdx < processedCells.length) {
-        animationFrameRef.current = requestAnimationFrame(() => renderBatch(endIdx, keys));
-      } else {
-        renderingRef.current = false;
-      }
-    };
-
-    // Wait for all images to load, then render
-    const loadPromises = Array.from(imagesToLoad.entries()).map(([key, img]) => 
-      new Promise<void>((resolve) => {
-        if (img.complete) {
-          svgCache.set(key, img);
-          resolve();
-        } else {
-          img.onload = () => {
-            svgCache.set(key, img);
-            resolve();
-          };
-          img.onerror = () => resolve();
-        }
-      })
-    );
-
-    // Render already cached images immediately
-    const cachedRender = () => {
-      for (const [cacheKey, positions] of cellsByKey.entries()) {
-        const img = svgCache.get(cacheKey);
-        if (img) {
-          for (const { x, y } of positions) {
-            ctx.drawImage(img, x, y, cellSize, cellSize);
-          }
-        }
-      }
-    };
-
-    if (imagesToLoad.size === 0) {
-      // All images are cached
-      try {
-        cachedRender();
-      } catch (error) {
-        console.error('Error rendering cached preview:', error);
-      } finally {
-        renderingRef.current = false;
-      }
-    } else {
-      // Load new images and render
-      Promise.all(loadPromises).then(() => {
-        const keys = Array.from(cellsByKey.keys());
-        renderBatch(0, keys);
-      }).catch((error) => {
-        console.error('Error rendering preview:', error);
-        renderingRef.current = false;
+    // If not all glyphs are cached yet, retry after a short delay
+    if (!allCached) {
+      rafRef.current = requestAnimationFrame(() => {
+        // Trigger re-render by dispatching a minimal state change
+        // Actually we just re-run this effect by using a timeout
       });
+      const timer = setTimeout(() => {
+        // Force re-render by re-setting cells (zustand will notify)
+        canvasRef.current?.dispatchEvent(new Event('render'));
+      }, 50);
+      return () => clearTimeout(timer);
     }
+
+    // Stamp cell by cell using a temporary single-cell canvas for tinting
+    const stampCanvas = document.createElement('canvas');
+    stampCanvas.width = cellSize;
+    stampCanvas.height = cellSize;
+    const stampCtx = stampCanvas.getContext('2d')!;
+
+    // Render in batches via rAF to avoid blocking
+    const BATCH = 2000;
+    let idx = 0;
+
+    const renderBatch = () => {
+      const end = Math.min(idx + BATCH, processedCells.length);
+
+      for (; idx < end; idx++) {
+        const cell = processedCells[idx];
+        const glyph = glyphCache.get(cell.char.id);
+        if (!glyph) continue;
+
+        const px = cell.x * step;
+        const py = cell.y * step;
+
+        // Determine color
+        let r: number, g: number, b: number;
+        if (config.mode === 'bw') {
+          const gray = Math.floor(cell.luminance * 255);
+          r = g = b = gray;
+        } else {
+          r = cell.r;
+          g = cell.g;
+          b = cell.b;
+        }
+
+        // Tint: draw glyph mask, then multiply with color
+        stampCtx.clearRect(0, 0, cellSize, cellSize);
+        stampCtx.globalCompositeOperation = 'source-over';
+        stampCtx.drawImage(glyph.canvas, 0, 0);
+        stampCtx.globalCompositeOperation = 'source-in';
+        stampCtx.fillStyle = `rgb(${r},${g},${b})`;
+        stampCtx.fillRect(0, 0, cellSize, cellSize);
+
+        ctx.drawImage(stampCanvas, px, py);
+      }
+
+      if (idx < processedCells.length) {
+        rafRef.current = requestAnimationFrame(renderBatch);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(renderBatch);
 
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      renderingRef.current = false;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [processedCells, config, dimensions]);
+  }, [processedCells, config]);
 
   return (
     <div
@@ -187,7 +189,7 @@ export function Preview() {
             fontSize: '14px',
           }}
         >
-          Processing...
+          Procesando...
         </div>
       )}
       <canvas
@@ -195,7 +197,6 @@ export function Preview() {
         style={{
           maxWidth: '100%',
           maxHeight: '100%',
-          imageRendering: 'pixelated',
         }}
       />
     </div>

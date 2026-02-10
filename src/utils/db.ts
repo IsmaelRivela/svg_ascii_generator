@@ -1,88 +1,57 @@
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { SVGCollection, Preset, RenderConfig } from '../types';
 
-interface AppDB extends DBSchema {
-  collections: {
-    key: string;
-    value: SVGCollection;
-  };
-  presets: {
-    key: string;
-    value: Preset;
-  };
-  config: {
-    key: 'current';
-    value: RenderConfig;
-  };
-  enabledChars: {
-    key: 'enabled';
-    value: string[];
-  };
+const KEYS = {
+  collections: 'svg-ascii-collections',
+  presets: 'svg-ascii-presets',
+  config: 'svg-ascii-config',
+  enabledChars: 'svg-ascii-enabledChars',
+};
+
+function save(key: string, data: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.warn('localStorage save failed:', e);
+  }
 }
 
-let db: IDBPDatabase<AppDB> | null = null;
-
-export async function initDB() {
-  db = await openDB<AppDB>('svg-ascii-generator', 2, {
-    upgrade(db, oldVersion) {
-      if (oldVersion < 1) {
-        db.createObjectStore('collections', { keyPath: 'id' });
-        db.createObjectStore('presets', { keyPath: 'id' });
-        db.createObjectStore('config');
-      }
-      if (oldVersion < 2) {
-        db.createObjectStore('enabledChars');
-      }
-    },
-  });
-  return db;
+function load<T>(key: string): T | null {
+  try {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function saveCollections(collections: SVGCollection[]) {
-  if (!db) await initDB();
-  const tx = db!.transaction('collections', 'readwrite');
-  await Promise.all([
-    ...collections.map((c) => tx.store.put(c)),
-    tx.done,
-  ]);
+  save(KEYS.collections, collections);
 }
 
 export async function loadCollections(): Promise<SVGCollection[]> {
-  if (!db) await initDB();
-  return db!.getAll('collections');
+  return load<SVGCollection[]>(KEYS.collections) || [];
 }
 
 export async function savePresets(presets: Preset[]) {
-  if (!db) await initDB();
-  const tx = db!.transaction('presets', 'readwrite');
-  await Promise.all([
-    ...presets.map((p) => tx.store.put(p)),
-    tx.done,
-  ]);
+  save(KEYS.presets, presets);
 }
 
 export async function loadPresets(): Promise<Preset[]> {
-  if (!db) await initDB();
-  return db!.getAll('presets');
+  return load<Preset[]>(KEYS.presets) || [];
 }
 
 export async function saveConfig(config: RenderConfig) {
-  if (!db) await initDB();
-  await db!.put('config', config, 'current');
+  save(KEYS.config, config);
 }
 
 export async function loadConfig(): Promise<RenderConfig | undefined> {
-  if (!db) await initDB();
-  return db!.get('config', 'current');
+  return load<RenderConfig>(KEYS.config) || undefined;
 }
 
 export async function saveEnabledChars(charIds: string[]) {
-  if (!db) await initDB();
-  await db!.put('enabledChars', charIds, 'enabled');
+  save(KEYS.enabledChars, charIds);
 }
 
 export async function loadEnabledChars(): Promise<string[]> {
-  if (!db) await initDB();
-  const result = await db!.get('enabledChars', 'enabled');
-  return result || [];
+  return load<string[]>(KEYS.enabledChars) || [];
 }

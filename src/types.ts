@@ -23,6 +23,7 @@ export interface RenderConfig {
   cellSize: number;
   spacing: number;
   mode: 'bw' | 'color' | 'duotone';
+  charMode: 'brightness' | 'random';
   duotoneColor1?: string;
   duotoneColor2?: string;
   transparentBackground?: boolean;
@@ -50,8 +51,4 @@ export interface ProcessedCell {
   char: SVGChar;
 }
 
-export interface ImageData {
-  width: number;
-  height: number;
-  data: Uint8ClampedArray;
-}
+

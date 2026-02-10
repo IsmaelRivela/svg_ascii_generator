@@ -71,7 +71,7 @@ export function ControlPanel() {
 
       <div style={{ marginBottom: '24px' }}>
         <label style={{ fontSize: '13px', marginBottom: '8px', display: 'block' }}>
-          Mode
+          Color Mode
         </label>
         <div style={{ display: 'flex', gap: '8px' }}>
           {(['bw', 'color', 'duotone'] as const).map((mode) => (
@@ -85,6 +85,27 @@ export function ControlPanel() {
               }}
             >
               {mode.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{ fontSize: '13px', marginBottom: '8px', display: 'block' }}>
+          Glyph Selection
+        </label>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {(['brightness', 'random'] as const).map((cm) => (
+            <button
+              key={cm}
+              onClick={() => updateConfig({ charMode: cm })}
+              style={{
+                fontSize: '11px',
+                padding: '6px 12px',
+                background: config.charMode === cm ? 'var(--accent)' : 'var(--border)',
+              }}
+            >
+              {cm === 'brightness' ? 'BY BRIGHTNESS' : 'RANDOM'}
             </button>
           ))}
         </div>

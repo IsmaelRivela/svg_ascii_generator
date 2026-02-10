@@ -50,6 +50,7 @@ const defaultConfig: RenderConfig = {
   cellSize: 12,
   spacing: 0,
   mode: 'bw',
+  charMode: 'brightness',
   transparentBackground: false,
   skipWhiteAreas: false,
   whiteThreshold: 0.85,

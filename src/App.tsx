@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStore } from './stores/useStore';
 import { ImageUpload } from './components/ImageUpload';
 import { ControlPanel } from './components/ControlPanel';
@@ -10,8 +10,11 @@ import { useImageProcessor } from './engine/useImageProcessor';
 import { loadCollections, loadPresets, loadConfig, saveCollections, savePresets, saveConfig, loadEnabledChars, saveEnabledChars } from './utils/db';
 import { defaultCollection, glifosCollection, tulipanaCollectionData } from './utils/defaultSVGs';
 
+const DEFAULT_COLLECTIONS = [defaultCollection, glifosCollection, tulipanaCollectionData];
+
 function App() {
   useImageProcessor();
+  const initDone = useRef(false);
 
   const {
     sourceImage,
@@ -26,84 +29,42 @@ function App() {
     presets,
   } = useStore();
 
+  // --- Init: load persisted state once ---
   useEffect(() => {
     async function init() {
-      const [savedCollections, savedPresets, savedConfig, savedEnabledChars] = await Promise.all([
-        loadCollections(),
-        loadPresets(),
-        loadConfig(),
-        loadEnabledChars(),
+      const [saved, savedPresets, savedConfig, savedEnabled] = await Promise.all([
+        loadCollections(), loadPresets(), loadConfig(), loadEnabledChars(),
       ]);
 
-      // Always ensure we have the latest default collections
-      const defaultCollections = [defaultCollection, glifosCollection, tulipanaCollectionData];
-      
-      if (savedCollections.length === 0) {
-        // First time: load all default collections
-        setCollections(defaultCollections);
-        setActiveCollection(tulipanaCollectionData.id);
-        saveCollections(defaultCollections);
-      } else {
-        // Check if we need to add new collections
-        const hasDefaultCollection = savedCollections.some(c => c.id === 'default');
-        const hasGlifos = savedCollections.some(c => c.id === 'glifos-rushmore');
-        const hasTulipana = savedCollections.some(c => c.id === 'tulipana');
-        
-        const collectionsToAdd = [];
-        if (!hasDefaultCollection) collectionsToAdd.push(defaultCollection);
-        if (!hasGlifos) collectionsToAdd.push(glifosCollection);
-        if (!hasTulipana) collectionsToAdd.push(tulipanaCollectionData);
-        
-        const allCollections = [...savedCollections, ...collectionsToAdd];
-        setCollections(allCollections);
-        
-        if (allCollections.length > 0) {
-          // If we just added Tulipana, make it active
-          setActiveCollection(hasTulipana ? savedCollections[0].id : tulipanaCollectionData.id);
-        }
-        
-        // Save updated collections if we added new ones
-        if (collectionsToAdd.length > 0) {
-          saveCollections(allCollections);
-        }
-        
-        // Load enabled chars if saved
-        if (savedEnabledChars.length > 0) {
-          setEnabledChars(savedEnabledChars);
-        }
-      }
+      // Merge default collections with saved ones (adds missing defaults)
+      const savedIds = new Set(saved.map((c: { id: string }) => c.id));
+      const missing = DEFAULT_COLLECTIONS.filter(c => !savedIds.has(c.id));
+      const all = [...saved, ...missing];
 
-      if (savedPresets.length > 0) {
-        setPresets(savedPresets);
-      }
+      setCollections(all.length > 0 ? all : DEFAULT_COLLECTIONS);
+      setActiveCollection(all.length > 0 ? all[0].id : tulipanaCollectionData.id);
 
-      if (savedConfig) {
-        updateConfig(savedConfig);
-      }
+      if (missing.length > 0 || saved.length === 0) saveCollections(all.length > 0 ? all : DEFAULT_COLLECTIONS);
+      if (savedEnabled.length > 0) setEnabledChars(savedEnabled);
+      if (savedPresets.length > 0) setPresets(savedPresets);
+      if (savedConfig) updateConfig(savedConfig);
+
+      initDone.current = true;
     }
-
     init();
   }, [setCollections, setActiveCollection, setEnabledChars, setPresets, updateConfig]);
 
+  // --- Single debounced auto-save for all state ---
   useEffect(() => {
-    if (collections.length > 0) {
+    if (!initDone.current) return;
+    const id = setTimeout(() => {
       saveCollections(collections);
-    }
-  }, [collections]);
-
-  useEffect(() => {
-    saveEnabledChars(Array.from(enabledCharIds));
-  }, [enabledCharIds]);
-
-  useEffect(() => {
-    if (presets.length > 0) {
+      saveEnabledChars(Array.from(enabledCharIds));
       savePresets(presets);
-    }
-  }, [presets]);
-
-  useEffect(() => {
-    saveConfig(config);
-  }, [config]);
+      saveConfig(config);
+    }, 500);
+    return () => clearTimeout(id);
+  }, [collections, enabledCharIds, presets, config]);
 
   return (
     <div
@@ -131,14 +92,7 @@ function App() {
         <ExportPanel />
       </div>
 
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-        }}
-      >
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {!sourceImage && <ImageUpload />}
         {sourceImage && <Preview />}
       </div>
